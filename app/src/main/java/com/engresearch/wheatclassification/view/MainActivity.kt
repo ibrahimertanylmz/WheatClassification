@@ -11,9 +11,10 @@ import android.graphics.Bitmap
 import android.graphics.BitmapFactory
 import android.net.Uri
 import android.os.Bundle
+import android.os.Environment
 import android.os.StrictMode
-import android.os.StrictMode.VmPolicy
 import android.provider.MediaStore
+import android.util.Log
 import android.widget.ImageView
 import android.widget.TextView
 import androidx.appcompat.app.AppCompatActivity
@@ -22,6 +23,7 @@ import androidx.core.content.ContextCompat
 import androidx.lifecycle.Observer
 import androidx.lifecycle.ViewModelProviders
 import com.engresearch.wheatclassification.R
+import com.engresearch.wheatclassification.utils.Utils
 import com.engresearch.wheatclassification.viewmodel.MainViewModel
 import java.io.File
 import java.io.FileOutputStream
@@ -38,8 +40,10 @@ class MainActivity : AppCompatActivity() {
     private lateinit var viewModel: MainViewModel
     private val cameraRequest = 1888
     private lateinit var progress : ProgressDialog
-    private lateinit var outputFileUri : Uri
+    private var pictureImagePath : String =""
     private lateinit var tempImageFile : File
+
+
 
     @SuppressLint("CheckResult")
     override fun onCreate(savedInstanceState: Bundle?) {
@@ -48,6 +52,7 @@ class MainActivity : AppCompatActivity() {
         setContentView(R.layout.activity_main)
 
         progress = ProgressDialog(this)
+
         imageView = findViewById<ImageView>(R.id.imageView)
         textView = findViewById<TextView>(R.id.textView)
         var buttonCamera = findViewById<ImageView>(R.id.imageView3)
@@ -68,12 +73,30 @@ class MainActivity : AppCompatActivity() {
 
         buttonCamera.setOnClickListener {
             val cameraIntent = Intent(MediaStore.ACTION_IMAGE_CAPTURE)
-            val root: File = File("/storage/emulated/0/Download")
-            val file = ("wheatImage.jpg")
-            tempImageFile = File(root, file)
-            outputFileUri = Uri.fromFile(tempImageFile)
-            val builder = VmPolicy.Builder()
+            val builder = StrictMode.VmPolicy.Builder()
             StrictMode.setVmPolicy(builder.build())
+
+            val root_dir: File?
+            root_dir = if (Environment.getExternalStorageState() == Environment.MEDIA_MOUNTED) {
+                getExternalFilesDir(null)
+            } else {
+                cacheDir
+            }
+//        root_dir = getCacheDir();
+
+            //        root_dir = getCacheDir();
+            val root = File(root_dir, File.separator + "MyDir" + File.separator)
+            if (root.mkdirs()) {
+                Log.d("SELECT_IMAGE", "root directory created")
+            } else {
+                Log.d("SELECT_IMAGE", "root directory failed to be created")
+            }
+
+            val tempFileName: String =  "img_" + System.currentTimeMillis() + ".jpg";
+            tempImageFile = File(root, tempFileName)
+
+            val outputFileUri = Uri.fromFile(tempImageFile)
+            Log.d("SELECT_IMAGE", "outputFileUri: " + Utils.getPath(this, outputFileUri))
 
             cameraIntent.putExtra(MediaStore.EXTRA_OUTPUT, outputFileUri);
             startActivityForResult(cameraIntent, cameraRequest)
@@ -87,15 +110,21 @@ class MainActivity : AppCompatActivity() {
     }
     override fun onActivityResult(requestCode: Int, resultCode: Int, data: Intent?) {
         super.onActivityResult(requestCode, resultCode, data)
+        //var bitmap = data?.extras?.get("data") as Bitmap?
+        //if (bitmap!= null)
+        //wheatImage = convertBitmaptoFile(bitmap)
+        //imageView.setImageBitmap(bitmap)
+        val imgFile = File(tempImageFile.path)
         val bitmap = BitmapFactory.decodeFile(tempImageFile.path)
         imageView.setImageBitmap(bitmap)
-
-        viewModel.getData(tempImageFile)
+        viewModel.getData(imgFile)
 
         progress.setTitle("Buğday Sınıflandırma Sistemi")
         progress.setMessage("Buğday Sınıflandırılıyor")
         progress.setCancelable(false) // disable dismiss by tapping outside of the dialog
+
         progress.show()
+// To dismiss the
     }
 
     fun convertBitmaptoFile(bitmap: Bitmap) : File {
